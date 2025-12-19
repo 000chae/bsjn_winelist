@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BSJN Wine Cellar</title>
+
+<style>
+/* 1. 디자인 설정 */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Segoe UI', system-ui, sans-serif;
+  background: linear-gradient(180deg, #002060 0%, #001540 100%);
+  color: #ffffff;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+header {
+  text-align: center;
+  padding: 50px 0 35px;
+}
+
+h1 {
+  font-size: 40px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  color: #ffffff;
+  letter-spacing: -1px;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* 검색창 */
+.search-box {
+  background: #ffffff;
+  border-radius: 50px;
+  padding: 14px 24px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+  margin-bottom: 30px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-icon {
+  width: 22px;
+  height: 22px;
+  color: #002060;
+  flex-shrink: 0;
+}
+
+#q {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 17px;
+  font-weight: 600;
+  color: #002060;
+  background: transparent;
+}
+
+/* 필터 버튼 */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.filter-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-btn.active {
+  background: #ffffff;
+  color: #002060;
+  border-color: #ffffff;
+  font-weight: 700;
+}
+
+.status {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+/* 결과 카드 */
+.results { display: grid; gap: 16px; }
+
+.wine-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 24px;
+  color: #333;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.wine-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.wine-name {
+  font-size: 19px;
+  font-weight: 800;
+  color: #1a1a1a;
+  flex: 1;
+}
+
+.vintage {
+  background: #002060;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.winery { font-size: 15px; color: #666; margin-bottom: 12px; font-weight: 600; }
+
+.wine-details { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.badge { padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.badge.type { background: #eef2ff; color: #002060; border: 1px solid #ccd5f0; }
+.badge.country { background: #f3f4f6; color: #4b5563; }
+.badge.location { background: #fff1f2; color: #9f1239; border: 1px solid #fecdd3; }
+
+.wine-price {
+  display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid #f0f0f0;
+}
+.price { font-size: 18px; font-weight: 800; color: #002060; }
+.loading, .empty { text-align: center; padding: 60px 0; color: rgba(255,255,255,0.8); }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <header>
+    <h1>🍷 My Wine Cellar</h1>
+    <p class="subtitle">와인 컬렉션 검색</p>
+  </header>
+
+  <div class="search-box">
+    <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+    </svg>
+    <input id="q" placeholder="와인명, 와이너리, 국가, 종류, 위치 검색..." autofocus />
+  </div>
+
+  <div class="filter-bar" id="filters"></div>
+  <p id="status" class="status"></p>
+  <div id="list" class="results"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<script>
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRozOOqq01OOcJolwGpQDyIedGgv66caqpNjrGpchiEL4iaxsZ2X9DVkTyWJDrYwomvk4XeBNLpqVrP/pub?output=csv";
+
+const KEYS = ["제품명", "와이너리", "국가", "종류", "빈티지", "위치"];
+
+function safe(v) { return v && v !== "-" ? v : ""; }
+
+function formatPrice(price) {
+  if (!price || price === "-") return "-";
+  // 숫자 외의 문자(쉼표, 원화 기호 등) 제거
+  const num = Number(String(price).replace(/[^0-9.]/g, "")); 
+  if (isNaN(num)) return price;
+  
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(num);
+}
+
+let allData = [];
+let currentFilter = "all";
+
+document.getElementById("status").innerHTML = '<div class="loading">🍷 와인 리스트를 불러오는 중...</div>';
+
+// 에러 처리: 라이브러리 로딩 확인
+if (typeof Papa === 'undefined' || typeof Fuse === 'undefined') {
+    document.getElementById("status").innerHTML = 
+        '<div class="empty" style="color:#ff6b6b">⚠️ 인터넷 연결을 확인하거나<br>Netlify에 업로드해서 실행해주세요.<br>(로컬 파일 보안 차단됨)</div>';
+} else {
+    Papa.parse(CSV_URL, {
+      download: true,
+      header: true,
+      complete: function(results) {
+        allData = results.data.filter(r => r["제품명"] && r["제품명"].trim());
+
+        // 종류 필터 생성
+        const types = [...new Set(allData.map(w => w["종류"]).filter(Boolean))];
+        if (types.length > 0) {
+            document.getElementById("filters").innerHTML = `
+              <button class="filter-btn active" data-type="all">전체</button>
+              ${types.map(t => `<button class="filter-btn" data-type="${t}">${t}</button>`).join('')}
+            `;
+        }
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            currentFilter = e.target.dataset.type;
+            performSearch();
+          });
+        });
+
+        window.fuseInstance = new Fuse(allData, { keys: KEYS, threshold: 0.3, ignoreLocation: true });
+        render(allData);
+        document.getElementById("q").addEventListener("input", performSearch);
+      },
+      error: function() {
+        document.getElementById("status").innerHTML = '<div class="empty">데이터를 불러오지 못했습니다.<br>구글 시트 설정을 확인해주세요.</div>';
+      }
+    });
+}
+
+function performSearch() {
+  const term = document.getElementById("q").value.trim();
+  let items = term ? window.fuseInstance.search(term).map(r => r.item) : allData;
+  if (currentFilter !== "all") items = items.filter(w => w["종류"] === currentFilter);
+  render(items);
+}
+
+function render(items) {
+  const status = document.getElementById("status");
+  const list = document.getElementById("list");
+  status.textContent = `${items.length}개의 와인이 검색되었습니다`;
+
+  if (items.length === 0) {
+    list.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>';
+    return;
+  }
+
+  list.innerHTML = items.slice(0, 100).map(w => `
+    <div class="wine-card">
+      <div class="wine-header">
+        <div class="wine-name">${safe(w["제품명"])}</div>
+        ${safe(w["빈티지"]) ? `<div class="vintage">${w["빈티지"]}</div>` : ''}
+      </div>
+      ${safe(w["와이너리"]) ? `<div class="winery">${w["와이너리"]}</div>` : ''}
+      <div class="wine-details">
+        ${safe(w["종류"]) ? `<span class="badge type">${w["종류"]}</span>` : ''}
+        ${safe(w["국가"]) ? `<span class="badge country">${w["국가"]}</span>` : ''}
+        ${safe(w["위치"]) ? `<span class="badge location">📍 ${w["위치"]}</span>` : ''}
+      </div>
+      <div class="wine-price">
+        <div class="price">${formatPrice(w["가격대"])}</div>
+        ${safe(w["수량"]) ? `<div class="stock">재고: ${w["수량"]}병</div>` : ''}
+      </div>
+    </div>
+  `).join("");
+}
+</script>
+</body>
+</html>
